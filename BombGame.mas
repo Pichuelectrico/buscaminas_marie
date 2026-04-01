@@ -2,6 +2,8 @@ ORG 000
 Main,        LOAD Zero
              STORE GameOver
              STORE VictoryF
+             JNS InitBoard
+
 GameLoop,    LOAD GameOver
              SKIPCOND 400
              JUMP EndGame
@@ -26,34 +28,170 @@ GameLoop,    LOAD GameOver
              SUBT Two
              SKIPCOND 400
              JUMP DoReveal
+
 DoFlag,      LOAD CellIndex
              ADD AddrDisplay
              STORE TmpAddr
              LOAD ColorFlag
              STOREI TmpAddr
              JUMP GameLoop
+
 DoReveal,    LOAD CellIndex
+             ADD AddrVisible
+             STORE TmpAddr
+             LOADI TmpAddr
+             SKIPCOND 400
+             JUMP GameLoop
+
+             LOAD CellIndex
              ADD AddrMines
              STORE TmpAddr
              LOADI TmpAddr
              SKIPCOND 400
              JUMP Boom
+
              LOAD CellIndex
+             ADD AddrReal
+             STORE TmpAddr
+             LOADI TmpAddr
+             SKIPCOND 400
+             JUMP RevealSingle
+             JUMP FloodStart
+
+RevealSingle, LOAD CellIndex
+             STORE CurrCell
+             JNS RevealCell
+             JUMP GameLoop
+
+FloodStart,  LOAD Zero
+             STORE StackTop
+
+             / marcar celda inicial como en cola (=2)
+             LOAD CellIndex
+             ADD AddrVisible
+             STORE TmpAddr
+             LOAD Two
+             STOREI TmpAddr
+
+             / push celda inicial
+             LOAD StackTop
+             ADD AddrStack
+             STORE TmpAddr
+             LOAD CellIndex
+             STOREI TmpAddr
+             LOAD StackTop
+             ADD One
+             STORE StackTop
+
+FloodLoop,   LOAD StackTop
+             SKIPCOND 400
+             JUMP FloodPop
+             JUMP GameLoop
+
+FloodPop,    LOAD StackTop
+             SUBT One
+             STORE StackTop
+             ADD AddrStack
+             STORE TmpAddr
+             LOADI TmpAddr
+             STORE CurrCell
+
+             / si ya estaba revelada (=1), saltar
+             LOAD CurrCell
+             ADD AddrVisible
+             STORE TmpAddr
+             LOADI TmpAddr
+             SUBT One
+             SKIPCOND 400
+             JUMP FloodContinue
+             JUMP FloodLoop
+
+FloodContinue, JNS RevealCell
+
+             / si no es 0, no expandir vecinos
+             LOAD CurrCell
+             ADD AddrReal
+             STORE TmpAddr
+             LOADI TmpAddr
+             SKIPCOND 400
+             JUMP FloodLoop
+
+             LOAD Zero
+             STORE NeighborCnt
+             LOAD CurrCell
+             STORE MulA
+             LOAD Eight
+             STORE MulB
+             JNS MulRoutine
+             LOAD MulResult
+             ADD AddrNeighbors
+             STORE NeighborBase
+
+NeighborLoop, LOAD NeighborCnt
+             SUBT Eight
+             SKIPCOND 400
+             JUMP NeighborBody
+             JUMP FloodLoop
+
+NeighborBody, LOAD NeighborBase
+             ADD NeighborCnt
+             STORE TmpAddr
+             LOADI TmpAddr
+             STORE NeighborVal
+
+             / si vecino = -1, ignorar
+             LOAD NeighborVal
+             ADD One
+             SKIPCOND 400
+             JUMP CheckNeighborVisible
+             JUMP NeighborNext
+
+CheckNeighborVisible, LOAD NeighborVal
+             ADD AddrVisible
+             STORE TmpAddr
+             LOADI TmpAddr
+             SKIPCOND 400
+             JUMP NeighborNext
+
+PushNeighbor,LOAD NeighborVal
+             ADD AddrVisible
+             STORE TmpAddr
+             LOAD Two
+             STOREI TmpAddr
+
+             / push vecino
+             LOAD StackTop
+             ADD AddrStack
+             STORE TmpAddr
+             LOAD NeighborVal
+             STOREI TmpAddr
+             LOAD StackTop
+             ADD One
+             STORE StackTop
+
+NeighborNext, LOAD NeighborCnt
+             ADD One
+             STORE NeighborCnt
+             JUMP NeighborLoop
+
+RevealCell,  HEX 0
+             LOAD CurrCell
              ADD AddrVisible
              STORE TmpAddr
              LOAD One
              STOREI TmpAddr
-             LOAD CellIndex
+             LOAD CurrCell
              ADD AddrColors
              STORE TmpAddr
              LOADI TmpAddr
              STORE TmpColor
-             LOAD CellIndex
+             LOAD CurrCell
              ADD AddrDisplay
              STORE TmpAddr
              LOAD TmpColor
              STOREI TmpAddr
-             JUMP GameLoop
+             JUMPI RevealCell
+
 Boom,        LOAD CellIndex
              ADD AddrDisplay
              STORE TmpAddr
@@ -61,6 +199,7 @@ Boom,        LOAD CellIndex
              STOREI TmpAddr
              LOAD Zero
              STORE BoomIdx
+
 BoomLoop,    LOAD BoomIdx
              ADD AddrMines
              STORE TmpAddr
@@ -72,6 +211,7 @@ BoomLoop,    LOAD BoomIdx
              STORE TmpAddr
              LOAD ColorMine
              STOREI TmpAddr
+
 BoomNext,    LOAD BoomIdx
              ADD One
              STORE BoomIdx
@@ -81,15 +221,18 @@ BoomNext,    LOAD BoomIdx
              LOAD One
              STORE GameOver
              JUMP EndGame
+
 MulRoutine,  HEX 0
              LOAD Zero
              STORE MulResult
              STORE MulCount
+
 MulL,        LOAD MulCount
              SUBT MulB
              SKIPCOND 400
              JUMP MulBody
              JUMPI MulRoutine
+
 MulBody,     LOAD MulResult
              ADD MulA
              STORE MulResult
@@ -97,13 +240,42 @@ MulBody,     LOAD MulResult
              ADD One
              STORE MulCount
              JUMP MulL
+
+InitBoard,   HEX 0
+             LOAD Zero
+             STORE InitIdx
+
+InitLoop,    LOAD InitIdx
+             ADD AddrDisplay
+             STORE TmpAddr
+             LOAD ColorHidden
+             STOREI TmpAddr
+
+             LOAD InitIdx
+             ADD AddrVisible
+             STORE TmpAddr
+             LOAD Zero
+             STOREI TmpAddr
+
+             LOAD InitIdx
+             ADD One
+             STORE InitIdx
+             SUBT N256
+             SKIPCOND 400
+             JUMP InitLoop
+
+             JUMPI InitBoard
+
 EndGame,     HALT
 WinGame,     HALT
+
 Zero,        DEC 0
 One,         DEC 1
 Two,         DEC 2
+Eight,       DEC 8
 Sixteen,     DEC 16
 N256,        DEC 256
+
 GameOver,    DEC 0
 VictoryF,    DEC 0
 InputRow,    DEC 0
@@ -113,19 +285,30 @@ CellIndex,   DEC 0
 TmpAddr,     DEC 0
 TmpColor,    DEC 0
 BoomIdx,     DEC 0
+InitIdx,     DEC 0
+CurrCell,    DEC 0
+StackTop,    DEC 0
+NeighborCnt, DEC 0
+NeighborBase, DEC 0
+NeighborVal, DEC 0
 MulA,        DEC 0
 MulB,        DEC 0
 MulResult,   DEC 0
 MulCount,    DEC 0
-AddrReal,    HEX 100
-AddrMines,   HEX 200
-AddrColors,  HEX 300
-AddrVisible, HEX 400
-AddrDisplay, HEX F00
+
+AddrReal,      HEX 120
+AddrMines,     HEX 220
+AddrColors,    HEX 320
+AddrVisible,   HEX 420
+AddrNeighbors, HEX 520
+AddrStack,     HEX E00
+AddrDisplay,   HEX F00
+
 ColorFlag,   HEX FFE0
 ColorMine,   HEX 0000
 ColorHidden, HEX 4208
-/ --- PADDING hasta 0x100 (131 celdas) ---
+
+/ --- PADDING hasta 0x120 (25 celdas) ---
 DEC 0
 DEC 0
 DEC 0
@@ -151,1140 +334,7 @@ DEC 0
 DEC 0
 DEC 0
 DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
+
 / ================================================================
 / MAPA DE JUEGO - GENERADO POR PYTHON (solo cambiar esta seccion)
 / ================================================================
-/ --- TABLERO REAL 0x100 (python paste) ---
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 1
-DEC 1
-DEC 1
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 1
-DEC 9
-DEC 1
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 1
-DEC 1
-DEC 1
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 1
-DEC 1
-DEC 1
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 1
-DEC 9
-DEC 1
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 1
-DEC 1
-DEC 1
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 1
-DEC 1
-DEC 1
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 1
-DEC 9
-DEC 1
-DEC 0
-DEC 0
-/ --- MINAS (0x200) ---
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 1
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 1
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 1
-DEC 0
-DEC 0
-DEC 0
-/ --- COLORES FINALES (0x300) ---
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX 07DF
-HEX 07DF
-HEX 07DF
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX 07DF
-HEX 0000
-HEX 07DF
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX 07DF
-HEX 07DF
-HEX 07DF
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX 07DF
-HEX 07DF
-HEX 07DF
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX 07DF
-HEX 0000
-HEX 07DF
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX 07DF
-HEX 07DF
-HEX 07DF
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX 07DF
-HEX 07DF
-HEX 07DF
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX D6D6
-HEX 07DF
-HEX 0000
-HEX 07DF
-HEX D6D6
-HEX D6D6
-/ --- ESTADO VISIBLE 0x400 (0=oculto 1=revelado) ---
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
