@@ -16,7 +16,7 @@ BASE_NEIGHBORS = 0x520
 
 # ─── COLORES RGB565 ───────────────────────────────────────────
 COLOR_MAP = {
-    "HIDDEN": {"hex": "4208", "rgb": (68, 68, 68)},   # Gris oscuro
+    "HIDDEN": {"hex": "39E7", "rgb": (68, 68, 68)},   # Gris oscuro
     "FLAG": {"hex": "FFE0", "rgb": (255, 255, 0)},    # Amarillo
     "MINE": {"hex": "0000", "rgb": (0, 0, 0)},        # Negro
     0: {"hex": "D6D6", "rgb": (211, 211, 211)},       # Gris claro
