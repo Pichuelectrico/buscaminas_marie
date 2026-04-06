@@ -36,7 +36,6 @@ El juego utiliza códigos hexadecimales **RGB565** para representar visualmente 
 | **Bandera** | Marca de usuario | `FFE0` | Amarillo |
 
 ### Visualización del Tablero Real
-![Tablero Real](img/tablero_real.png)
 *Ejemplo del tablero generado donde se aprecian las minas (negro) y los números de proximidad (colores).*
 
 ---
