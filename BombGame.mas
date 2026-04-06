@@ -306,7 +306,7 @@ AddrDisplay,   HEX F00
 
 ColorFlag,   HEX FFE0
 ColorMine,   HEX 0000
-ColorHidden, HEX 4208
+ColorHidden, HEX 294A
 
 / --- PADDING hasta 0x120 (25 celdas) ---
 DEC 0

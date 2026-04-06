@@ -20,7 +20,7 @@ COLOR_MAP = {
     "FLAG": {"hex": "FFE0", "rgb": (255, 255, 0)},    # Amarillo
     "MINE": {"hex": "0000", "rgb": (0, 0, 0)},        # Negro
     0: {"hex": "D6D6", "rgb": (211, 211, 211)},       # Gris claro
-    1: {"hex": "07DF", "rgb": (0, 0, 255)},           # Azul
+    1: {"hex": "001F", "rgb": (0, 0, 255)},           # Azul
     2: {"hex": "0300", "rgb": (0, 128, 0)},           # Verde
     3: {"hex": "7800", "rgb": (255, 0, 0)},           # Rojo
     4: {"hex": "001F", "rgb": (0, 0, 139)},           # Azul oscuro
@@ -126,16 +126,19 @@ def save_board_image(board, filename="tablero_real.png"):
             val = board[r][c]
             color = COLOR_MAP["MINE"]["rgb"] if val == -1 else COLOR_MAP[val]["rgb"]
 
-            draw.rectangle(
-                [
-                    axis_margin + c * CELL_SIZE,
-                    axis_margin + r * CELL_SIZE,
-                    axis_margin + (c + 1) * CELL_SIZE,
-                    axis_margin + (r + 1) * CELL_SIZE,
-                ],
-                fill=color,
-                outline=(0, 0, 0),
-            )
+            x0 = axis_margin + c * CELL_SIZE
+            y0 = axis_margin + r * CELL_SIZE
+            x1 = axis_margin + (c + 1) * CELL_SIZE
+            y1 = axis_margin + (r + 1) * CELL_SIZE
+
+            draw.rectangle([x0, y0, x1, y1], fill=color, outline=(0, 0, 0))
+
+            label = "*" if val == -1 else (str(val) if val > 0 else "")
+            if label:
+                text_color = (255, 255, 255) if color[0] + color[1] + color[2] < 300 else (0, 0, 0)
+                tx = x0 + CELL_SIZE // 2 - 4
+                ty = y0 + CELL_SIZE // 2 - 6
+                draw.text((tx, ty), label, fill=text_color, font=font)
 
     img.save(filename)
 
