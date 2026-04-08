@@ -185,7 +185,6 @@ def build_marie_block(board):
     return marie
 
 
-
 # ─── MAIN ─────────────────────────────────────────────────────
 def main():
     board = build_board()
@@ -200,16 +199,6 @@ def main():
     marie_block = build_marie_block(board)
     with open("salida_proyecto.txt", "w", encoding="utf-8") as f:
         f.write(marie_block)
-
-    # 4. Inyectar mapa en BombGame.mas
-    marker = "/ MAPA DE JUEGO - GENERADO POR PYTHON (solo cambiar esta seccion)"
-    with open("BombGame.mas", "r", encoding="utf-8") as f:
-        mas_content = f.read()
-    marker_idx = mas_content.find(marker)
-    if marker_idx != -1:
-        header = mas_content[:marker_idx + len(marker)]
-        with open("BombGame.mas", "w", encoding="utf-8") as f:
-            f.write(header + "\n/ ================================================================\n" + marie_block)
 
     print("Generados:")
     print("- tablero_real.png")
