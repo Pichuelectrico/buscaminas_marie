@@ -6,7 +6,7 @@ import random
 BOARD_SIZE = 16
 CELL_SIZE = 32
 IMG_SIZE = BOARD_SIZE * CELL_SIZE
-MINE_COUNT = 2
+MINE_COUNT = 1
 
 # ─── COLORES RGB565 ───────────────────────────────────────────
 COLOR_MAP = {

@@ -460,7 +460,7 @@ Eight,       DEC 8
 Sixteen,     DEC 16
 N256,        DEC 256
 Ten,         DEC 10
-MineTotal,   DEC 22
+MineTotal,   DEC __MINE_TOTAL__
 AsciiZero,   HEX 0030
 MinusChar,   HEX 002D
 NewLine,     HEX 000A
