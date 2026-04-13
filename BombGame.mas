@@ -3,6 +3,8 @@ Main,        LOAD Zero
              STORE GameOver
              STORE VictoryF
              JNS InitBoard
+             JNS PrintStartMsg
+             JNS PrintScoreMsg
 
 GameLoop,    LOAD GameOver
              SKIPCOND 400
@@ -65,16 +67,20 @@ PutFlag,     LOAD CellIndex
              STORE TmpAddr
              LOADI TmpAddr
              SKIPCOND 400
+             JUMP FlagRight
              JUMP FlagWrong
 
 FlagRight,   LOAD Score
              ADD One
              STORE Score
+             JNS PrintScoreMsg
+             JNS CheckVictory
              JUMP GameLoop
 
 FlagWrong,   LOAD Score
              SUBT One
              STORE Score
+             JNS PrintScoreMsg
              JUMP GameLoop
 
 RemoveFlag,  LOAD CellIndex
@@ -95,16 +101,19 @@ RemoveFlag,  LOAD CellIndex
              STORE TmpAddr
              LOADI TmpAddr
              SKIPCOND 400
+             JUMP UnflagRight
              JUMP UnflagWrong
 
 UnflagRight, LOAD Score
              SUBT One
              STORE Score
+             JNS PrintScoreMsg
              JUMP GameLoop
 
 UnflagWrong, LOAD Score
              ADD One
              STORE Score
+             JNS PrintScoreMsg
              JUMP GameLoop
 
 DoReveal,    LOAD CellIndex
@@ -291,7 +300,7 @@ BoomNext,    LOAD BoomIdx
              JUMP BoomLoop
              LOAD One
              STORE GameOver
-             JUMP EndGame
+             JUMP LoseGame
 
 MulRoutine,  HEX 0
              LOAD Zero
@@ -311,6 +320,89 @@ MulBody,     LOAD MulResult
              ADD One
              STORE MulCount
              JUMP MulL
+
+CheckVictory, HEX 0
+             LOAD Score
+             SUBT MineTotal
+             SKIPCOND 400
+             JUMP NotVictory
+             LOAD One
+             STORE VictoryF
+NotVictory,  JUMPI CheckVictory
+
+PrintStartMsg, HEX 0
+             LOAD MsgStartAddr
+             STORE StrPtr
+             JNS PrintString
+             LOAD NewLine
+             Output
+             JUMPI PrintStartMsg
+
+PrintScoreMsg, HEX 0
+             LOAD MsgScoreAddr
+             STORE StrPtr
+             JNS PrintString
+             LOAD Score
+             STORE NumToPrint
+             JNS PrintSigned
+             LOAD NewLine
+             Output
+             JUMPI PrintScoreMsg
+
+PrintString, HEX 0
+PrintStringLoop,LOADI StrPtr
+             SKIPCOND 400
+             JUMP PrintStringBody
+             JUMPI PrintString
+
+PrintStringBody, Output
+             LOAD StrPtr
+             ADD One
+             STORE StrPtr
+             JUMP PrintStringLoop
+
+PrintSigned, HEX 0
+             LOAD NumToPrint
+             SKIPCOND 000
+             JUMP PrintSignedPos
+             LOAD MinusChar
+             Output
+             LOAD Zero
+             SUBT NumToPrint
+             STORE NumWork
+             JUMP PrintUnsigned
+
+PrintSignedPos, LOAD NumToPrint
+             STORE NumWork
+
+PrintUnsigned, LOAD Zero
+             STORE TensCount
+
+PrintDivLoop, LOAD NumWork
+             SUBT Ten
+             SKIPCOND 000
+             JUMP PrintDivBody
+             JUMP PrintDivDone
+
+PrintDivBody, STORE NumWork
+             LOAD TensCount
+             ADD One
+             STORE TensCount
+             JUMP PrintDivLoop
+
+PrintDivDone, LOAD TensCount
+             SKIPCOND 400
+             JUMP PrintTens
+             JUMP PrintUnits
+
+PrintTens,   LOAD TensCount
+             ADD AsciiZero
+             Output
+
+PrintUnits,  LOAD NumWork
+             ADD AsciiZero
+             Output
+             JUMPI PrintSigned
 
 InitBoard,   HEX 0
              LOAD Zero
@@ -338,7 +430,26 @@ InitLoop,    LOAD InitIdx
              JUMPI InitBoard
 
 EndGame,     HALT
-WinGame,     HALT
+
+WinGame,     LOAD MsgWinAddr
+             STORE StrPtr
+             JNS PrintString
+             LOAD NewLine
+             Output
+             HALT
+
+LoseGame,    LOAD MsgLoseAddr
+             STORE StrPtr
+             JNS PrintString
+             LOAD Score
+             STORE NumToPrint
+             JNS PrintSigned
+             LOAD MsgBombsAddr
+             STORE StrPtr
+             JNS PrintString
+             LOAD NewLine
+             Output
+             HALT
 
 Zero,        DEC 0
 One,         DEC 1
@@ -347,6 +458,11 @@ Three,       DEC 3
 Eight,       DEC 8
 Sixteen,     DEC 16
 N256,        DEC 256
+Ten,         DEC 10
+MineTotal,   DEC 22
+AsciiZero,   HEX 0030
+MinusChar,   HEX 002D
+NewLine,     HEX 000A
 
 GameOver,    DEC 0
 VictoryF,    DEC 0
@@ -368,14 +484,24 @@ MulA,        DEC 0
 MulB,        DEC 0
 MulResult,   DEC 0
 MulCount,    DEC 0
+StrPtr,      DEC 0
+NumToPrint,  DEC 0
+NumWork,     DEC 0
+TensCount,   DEC 0
 
-AddrReal,      HEX 15C
-AddrMines,     HEX 25C
-AddrColors,    HEX 35C
-AddrVisible,   HEX 45C
-AddrNeighbors, HEX 55C
-AddrStack,     HEX E00
-AddrDisplay,   HEX F00
+AddrReal,      HEX 0237
+AddrMines,     HEX 0337
+AddrColors,    HEX 0437
+AddrVisible,   HEX 0537
+AddrNeighbors, HEX 0637
+AddrStack,     HEX 0E00
+AddrDisplay,   HEX 0F00
+
+MsgStartAddr,  HEX 01CA
+MsgScoreAddr,  HEX 01DF
+MsgLoseAddr,   HEX 01E7
+MsgBombsAddr,  HEX 0206
+MsgWinAddr,    HEX 020E
 
 ColorFlag,   HEX FFE0
 ColorMine,   HEX 0000
@@ -407,6 +533,120 @@ DEC 0
 DEC 0
 DEC 0
 DEC 0
+
+MsgStart,    HEX 0048
+             HEX 0041
+             HEX 0020
+             HEX 0045
+             HEX 004D
+             HEX 0050
+             HEX 0045
+             HEX 005A
+             HEX 0041
+             HEX 0044
+             HEX 004F
+             HEX 0020
+             HEX 0045
+             HEX 004C
+             HEX 0020
+             HEX 004A
+             HEX 0055
+             HEX 0045
+             HEX 0047
+             HEX 004F
+             DEC 0
+
+MsgScore,    HEX 0053
+             HEX 0043
+             HEX 004F
+             HEX 0052
+             HEX 0045
+             HEX 003A
+             HEX 0020
+             DEC 0
+
+MsgLose,     HEX 0050
+             HEX 0045
+             HEX 0052
+             HEX 0044
+             HEX 0049
+             HEX 0053
+             HEX 0054
+             HEX 0045
+             HEX 002C
+             HEX 0020
+             HEX 0048
+             HEX 0041
+             HEX 0053
+             HEX 0020
+             HEX 0045
+             HEX 004E
+             HEX 0043
+             HEX 004F
+             HEX 004E
+             HEX 0054
+             HEX 0052
+             HEX 0041
+             HEX 0044
+             HEX 004F
+             HEX 0020
+             HEX 0053
+             HEX 004F
+             HEX 004C
+             HEX 004F
+             HEX 0020
+             DEC 0
+
+MsgBombs,    HEX 0020
+             HEX 0042
+             HEX 004F
+             HEX 004D
+             HEX 0042
+             HEX 0041
+             HEX 0053
+             DEC 0
+
+MsgWin,      HEX 0047
+             HEX 0041
+             HEX 004E
+             HEX 0041
+             HEX 0053
+             HEX 0054
+             HEX 0045
+             HEX 002C
+             HEX 0020
+             HEX 0048
+             HEX 0041
+             HEX 0053
+             HEX 0020
+             HEX 0045
+             HEX 004E
+             HEX 0043
+             HEX 004F
+             HEX 004E
+             HEX 0054
+             HEX 0052
+             HEX 0041
+             HEX 0044
+             HEX 004F
+             HEX 0020
+             HEX 0054
+             HEX 004F
+             HEX 0044
+             HEX 0041
+             HEX 0053
+             HEX 0020
+             HEX 004C
+             HEX 0041
+             HEX 0053
+             HEX 0020
+             HEX 0042
+             HEX 004F
+             HEX 004D
+             HEX 0042
+             HEX 0041
+             HEX 0053
+             DEC 0
 
 / ================================================================
 / MAPA DE JUEGO - GENERADO POR PYTHON (solo cambiar esta seccion)
