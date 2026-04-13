@@ -30,10 +30,81 @@ GameLoop,    LOAD GameOver
              JUMP DoReveal
 
 DoFlag,      LOAD CellIndex
+             ADD AddrVisible
+             STORE TmpAddr
+             LOADI TmpAddr
+             SUBT One
+             SKIPCOND 400
+             JUMP CheckFlagState
+             JUMP GameLoop
+
+CheckFlagState, LOAD CellIndex
+             ADD AddrVisible
+             STORE TmpAddr
+             LOADI TmpAddr
+             SUBT Three
+             SKIPCOND 400
+             JUMP PutFlag
+             JUMP RemoveFlag
+
+PutFlag,     LOAD CellIndex
+             ADD AddrVisible
+             STORE TmpAddr
+             LOAD Three
+             STOREI TmpAddr
+
+             LOAD CellIndex
              ADD AddrDisplay
              STORE TmpAddr
              LOAD ColorFlag
              STOREI TmpAddr
+
+             / score: si hay mina +1, si no hay mina -1
+             LOAD CellIndex
+             ADD AddrMines
+             STORE TmpAddr
+             LOADI TmpAddr
+             SKIPCOND 400
+             JUMP FlagWrong
+
+FlagRight,   LOAD Score
+             ADD One
+             STORE Score
+             JUMP GameLoop
+
+FlagWrong,   LOAD Score
+             SUBT One
+             STORE Score
+             JUMP GameLoop
+
+RemoveFlag,  LOAD CellIndex
+             ADD AddrVisible
+             STORE TmpAddr
+             LOAD Zero
+             STOREI TmpAddr
+
+             LOAD CellIndex
+             ADD AddrDisplay
+             STORE TmpAddr
+             LOAD ColorHidden
+             STOREI TmpAddr
+
+             / revertir score: si era mina -1, si no era mina +1
+             LOAD CellIndex
+             ADD AddrMines
+             STORE TmpAddr
+             LOADI TmpAddr
+             SKIPCOND 400
+             JUMP UnflagWrong
+
+UnflagRight, LOAD Score
+             SUBT One
+             STORE Score
+             JUMP GameLoop
+
+UnflagWrong, LOAD Score
+             ADD One
+             STORE Score
              JUMP GameLoop
 
 DoReveal,    LOAD CellIndex
@@ -272,12 +343,14 @@ WinGame,     HALT
 Zero,        DEC 0
 One,         DEC 1
 Two,         DEC 2
+Three,       DEC 3
 Eight,       DEC 8
 Sixteen,     DEC 16
 N256,        DEC 256
 
 GameOver,    DEC 0
 VictoryF,    DEC 0
+Score,       DEC 0
 InputRow,    DEC 0
 InputCol,    DEC 0
 InputAct,    DEC 0
@@ -296,17 +369,17 @@ MulB,        DEC 0
 MulResult,   DEC 0
 MulCount,    DEC 0
 
-AddrReal,      HEX 120
-AddrMines,     HEX 220
-AddrColors,    HEX 320
-AddrVisible,   HEX 420
-AddrNeighbors, HEX 520
+AddrReal,      HEX 15C
+AddrMines,     HEX 25C
+AddrColors,    HEX 35C
+AddrVisible,   HEX 45C
+AddrNeighbors, HEX 55C
 AddrStack,     HEX E00
 AddrDisplay,   HEX F00
 
 ColorFlag,   HEX FFE0
 ColorMine,   HEX 0000
-ColorHidden, HEX 294A
+ColorHidden, HEX 39E7
 
 / --- PADDING hasta 0x120 (25 celdas) ---
 DEC 0
