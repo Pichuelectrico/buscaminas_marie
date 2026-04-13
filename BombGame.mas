@@ -328,6 +328,7 @@ CheckVictory, HEX 0
              JUMP NotVictory
              LOAD One
              STORE VictoryF
+             JUMP WinGame
 NotVictory,  JUMPI CheckVictory
 
 PrintStartMsg, HEX 0
@@ -489,19 +490,19 @@ NumToPrint,  DEC 0
 NumWork,     DEC 0
 TensCount,   DEC 0
 
-AddrReal,      HEX 0237
-AddrMines,     HEX 0337
-AddrColors,    HEX 0437
-AddrVisible,   HEX 0537
-AddrNeighbors, HEX 0637
+AddrReal,      HEX 0238
+AddrMines,     HEX 0338
+AddrColors,    HEX 0438
+AddrVisible,   HEX 0538
+AddrNeighbors, HEX 0638
 AddrStack,     HEX 0E00
 AddrDisplay,   HEX 0F00
 
-MsgStartAddr,  HEX 01CA
-MsgScoreAddr,  HEX 01DF
-MsgLoseAddr,   HEX 01E7
-MsgBombsAddr,  HEX 0206
-MsgWinAddr,    HEX 020E
+MsgStartAddr,  HEX 01CB
+MsgScoreAddr,  HEX 01E0
+MsgLoseAddr,   HEX 01E8
+MsgBombsAddr,  HEX 0207
+MsgWinAddr,    HEX 020F
 
 ColorFlag,   HEX FFE0
 ColorMine,   HEX 0000
