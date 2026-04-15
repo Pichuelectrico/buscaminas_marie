@@ -1,3 +1,4 @@
+from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 import random
 
@@ -5,29 +6,22 @@ import random
 BOARD_SIZE = 16
 CELL_SIZE = 32
 IMG_SIZE = BOARD_SIZE * CELL_SIZE
-MINE_COUNT =22
-
-# Direcciones base lógicas
-BASE_REAL = 0x120
-BASE_MINES = 0x220
-BASE_COLORS = 0x320
-BASE_VISIBLE = 0x420
-BASE_NEIGHBORS = 0x520
+MINE_COUNT = 1
 
 # ─── COLORES RGB565 ───────────────────────────────────────────
 COLOR_MAP = {
-    "HIDDEN": {"hex": "39E7", "rgb": (68, 68, 68)},   # Gris oscuro
-    "FLAG": {"hex": "FFE0", "rgb": (255, 255, 0)},    # Amarillo
-    "MINE": {"hex": "0000", "rgb": (0, 0, 0)},        # Negro
-    0: {"hex": "D6D6", "rgb": (211, 211, 211)},       # Gris claro
-    1: {"hex": "001F", "rgb": (0, 0, 255)},           # Azul
-    2: {"hex": "0300", "rgb": (0, 128, 0)},           # Verde
-    3: {"hex": "7800", "rgb": (255, 0, 0)},           # Rojo
-    4: {"hex": "001F", "rgb": (0, 0, 139)},           # Azul oscuro
-    5: {"hex": "CA70", "rgb": (139, 0, 0)},           # Marrón
-    6: {"hex": "0210", "rgb": (0, 255, 255)},         # Cian
-    7: {"hex": "D69A", "rgb": (238, 130, 238)},       # Morado
-    8: {"hex": "FFFF", "rgb": (255, 255, 255)},       # Blanco
+    "HIDDEN": {"hex": "39E7", "rgb": (68, 68, 68)},
+    "FLAG": {"hex": "FFE0", "rgb": (255, 255, 0)},
+    "MINE": {"hex": "0000", "rgb": (0, 0, 0)},
+    0: {"hex": "D6D6", "rgb": (211, 211, 211)},
+    1: {"hex": "001F", "rgb": (0, 0, 255)},
+    2: {"hex": "0300", "rgb": (0, 128, 0)},
+    3: {"hex": "7800", "rgb": (255, 0, 0)},
+    4: {"hex": "001F", "rgb": (0, 0, 139)},
+    5: {"hex": "CA70", "rgb": (139, 0, 0)},
+    6: {"hex": "0210", "rgb": (0, 255, 255)},
+    7: {"hex": "D69A", "rgb": (238, 130, 238)},
+    8: {"hex": "FFFF", "rgb": (255, 255, 255)},
 }
 
 
@@ -37,7 +31,7 @@ def build_board():
 
     mines = {
         (p // BOARD_SIZE, p % BOARD_SIZE)
-        for p in random.sample(range(BOARD_SIZE**2), MINE_COUNT)
+        for p in random.sample(range(BOARD_SIZE ** 2), MINE_COUNT)
     }
 
     for r, c in mines:
@@ -85,7 +79,7 @@ def get_neighbors(index):
 
 
 # ─── MATRIZ LEGIBLE ───────────────────────────────────────────
-def save_board_matrix(board, filename="tablero_matriz.txt"):
+def save_board_matrix(board, filename: Path):
     lines = []
     lines.append("TABLERO REAL (16x16)")
     lines.append("'*' = mina")
@@ -95,12 +89,11 @@ def save_board_matrix(board, filename="tablero_matriz.txt"):
         line = " ".join(f"{'*' if v == -1 else v:>2}" for v in row)
         lines.append(line)
 
-    with open(filename, "w", encoding="utf-8") as f:
-        f.write("\n".join(lines))
+    filename.write_text("\n".join(lines), encoding="utf-8")
 
 
 # ─── IMAGEN ───────────────────────────────────────────────────
-def save_board_image(board, filename="tablero_real.png"):
+def save_board_image(board, filename: Path):
     axis_margin = 28
     font = ImageFont.load_default()
 
@@ -111,12 +104,10 @@ def save_board_image(board, filename="tablero_real.png"):
     )
     draw = ImageDraw.Draw(img)
 
-    # Etiquetas de columnas (0..15)
     for c in range(BOARD_SIZE):
         x = axis_margin + c * CELL_SIZE + CELL_SIZE // 2 - 4
         draw.text((x, 8), str(c), fill=(0, 0, 0), font=font)
 
-    # Etiquetas de filas (0..15)
     for r in range(BOARD_SIZE):
         y = axis_margin + r * CELL_SIZE + CELL_SIZE // 2 - 4
         draw.text((8, y), str(r), fill=(0, 0, 0), font=font)
@@ -146,38 +137,32 @@ def save_board_image(board, filename="tablero_real.png"):
 # ─── BLOQUE MARIE LISTO PARA PEGAR ────────────────────────────
 def build_marie_block(board):
     marie = ""
-    neighbors_table = [get_neighbors(i) for i in range(BOARD_SIZE**2)]
+    neighbors_table = [get_neighbors(i) for i in range(BOARD_SIZE ** 2)]
 
-    # 0x100 - 0x1FF → tablero real
-    marie += "/ --- TABLERO REAL (0x100) ---\n"
+    marie += "/ --- TABLERO REAL (0x120) ---\n"
     for r in range(BOARD_SIZE):
         for c in range(BOARD_SIZE):
             val = board[r][c]
-            # En MARIE no usamos -1, usamos 9 como mina
             marie_val = 9 if val == -1 else val
             marie += f"DEC {marie_val}\n"
 
-    # 0x200 - 0x2FF → minas
-    marie += "/ --- MINAS (0x200) ---\n"
+    marie += "/ --- MINAS (0x220) ---\n"
     for r in range(BOARD_SIZE):
         for c in range(BOARD_SIZE):
             marie += f"DEC {1 if board[r][c] == -1 else 0}\n"
 
-    # 0x300 - 0x3FF → colores finales
-    marie += "/ --- COLORES FINALES (0x300) ---\n"
+    marie += "/ --- COLORES FINALES (0x320) ---\n"
     for r in range(BOARD_SIZE):
         for c in range(BOARD_SIZE):
             val = board[r][c]
             h = COLOR_MAP["MINE"]["hex"] if val == -1 else COLOR_MAP[val]["hex"]
             marie += f"HEX {h}\n"
 
-    # 0x400 - 0x4FF → visible
-    marie += "/ --- ESTADO VISIBLE (0x400) ---\n"
+    marie += "/ --- ESTADO VISIBLE (0x420) ---\n"
     for _ in range(BOARD_SIZE * BOARD_SIZE):
         marie += "DEC 0\n"
 
-    # 0x500 en adelante → vecinos
-    marie += "/ --- TABLA DE VECINOS (0x500) ---\n"
+    marie += "/ --- TABLA DE VECINOS (0x520) ---\n"
     for nlist in neighbors_table:
         for v in nlist:
             marie += f"DEC {v}\n"
@@ -185,25 +170,47 @@ def build_marie_block(board):
     return marie
 
 
+# ─── CONSTRUIR juego.mas FINAL ────────────────────────────────
+def build_game_file(base_dir: Path, salida_content: str):
+    bombgame_path = base_dir / "BombGame.mas"
+    output_path = base_dir / "juego.mas"
+
+    bombgame_content = bombgame_path.read_text(encoding="utf-8")
+    bombgame_content = bombgame_content.replace(
+        "__MINE_TOTAL__",
+        str(MINE_COUNT)
+    )
+
+    with output_path.open("w", encoding="utf-8", newline="") as output_file:
+        output_file.write(bombgame_content)
+        if not bombgame_content.endswith("\n"):
+            output_file.write("\n")
+        output_file.write(salida_content)
+
+
 # ─── MAIN ─────────────────────────────────────────────────────
 def main():
+    base_dir = Path(__file__).resolve().parent
+
     board = build_board()
 
-    # 1. Imagen
-    save_board_image(board, "tablero_real.png")
+    image_path = base_dir / "tablero_real.png"
+    matrix_path = base_dir / "tablero_matriz.txt"
+    salida_path = base_dir / "salida_proyecto.txt"
 
-    # 2. Matriz legible
-    save_board_matrix(board, "tablero_matriz.txt")
+    save_board_image(board, image_path)
+    save_board_matrix(board, matrix_path)
 
-    # 3. Bloque listo para pegar en MARIE
     marie_block = build_marie_block(board)
-    with open("salida_proyecto.txt", "w", encoding="utf-8") as f:
-        f.write(marie_block)
+    salida_path.write_text(marie_block, encoding="utf-8")
+
+    build_game_file(base_dir, marie_block)
 
     print("Generados:")
     print("- tablero_real.png")
     print("- tablero_matriz.txt")
     print("- salida_proyecto.txt")
+    print("- juego.mas")
 
 
 if __name__ == "__main__":
