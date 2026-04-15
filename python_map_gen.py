@@ -31,7 +31,7 @@ def build_board():
 
     mines = {
         (p // BOARD_SIZE, p % BOARD_SIZE)
-        for p in random.sample(range(BOARD_SIZE ** 2), MINE_COUNT)
+        for p in random.sample(range(BOARD_SIZE**2), MINE_COUNT)
     }
 
     for r, c in mines:
@@ -98,9 +98,7 @@ def save_board_image(board, filename: Path):
     font = ImageFont.load_default()
 
     img = Image.new(
-        "RGB",
-        (IMG_SIZE + axis_margin, IMG_SIZE + axis_margin),
-        (255, 255, 255)
+        "RGB", (IMG_SIZE + axis_margin, IMG_SIZE + axis_margin), (255, 255, 255)
     )
     draw = ImageDraw.Draw(img)
 
@@ -126,7 +124,11 @@ def save_board_image(board, filename: Path):
 
             label = "*" if val == -1 else (str(val) if val > 0 else "")
             if label:
-                text_color = (255, 255, 255) if color[0] + color[1] + color[2] < 300 else (0, 0, 0)
+                text_color = (
+                    (255, 255, 255)
+                    if color[0] + color[1] + color[2] < 300
+                    else (0, 0, 0)
+                )
                 tx = x0 + CELL_SIZE // 2 - 4
                 ty = y0 + CELL_SIZE // 2 - 6
                 draw.text((tx, ty), label, fill=text_color, font=font)
@@ -137,7 +139,7 @@ def save_board_image(board, filename: Path):
 # ─── BLOQUE MARIE LISTO PARA PEGAR ────────────────────────────
 def build_marie_block(board):
     marie = ""
-    neighbors_table = [get_neighbors(i) for i in range(BOARD_SIZE ** 2)]
+    neighbors_table = [get_neighbors(i) for i in range(BOARD_SIZE**2)]
 
     marie += "/ --- TABLERO REAL (0x120) ---\n"
     for r in range(BOARD_SIZE):
@@ -176,10 +178,7 @@ def build_game_file(base_dir: Path, salida_content: str):
     output_path = base_dir / "juego.mas"
 
     bombgame_content = bombgame_path.read_text(encoding="utf-8")
-    bombgame_content = bombgame_content.replace(
-        "__MINE_TOTAL__",
-        str(MINE_COUNT)
-    )
+    bombgame_content = bombgame_content.replace("__MINE_TOTAL__", str(MINE_COUNT))
 
     with output_path.open("w", encoding="utf-8", newline="") as output_file:
         output_file.write(bombgame_content)
@@ -190,7 +189,9 @@ def build_game_file(base_dir: Path, salida_content: str):
 
 # ─── MAIN ─────────────────────────────────────────────────────
 def main():
-    base_dir = Path(__file__).resolve().parent
+    base_dir = (
+        Path(__file__).resolve().parent if "__file__" in globals() else Path.cwd()
+    )
 
     board = build_board()
 
