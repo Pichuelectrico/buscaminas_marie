@@ -1,654 +1,654 @@
-ORG 000
-Main,        LOAD Zero
-             STORE GameOver
-             STORE VictoryF
-             JNS InitBoard
-             JNS PrintStartMsg
-             JNS PrintScoreMsg
+ORG 000        / dirección inicial del programa
+Main,        LOAD Zero        / inicializa acumulador en 0 para arrancar el juego limpio
+             STORE GameOver   / deja la bandera de fin de juego en 0 = todavía no se pierde
+             STORE VictoryF   / deja la bandera de victoria en 0 = todavía no se gana
+             JNS InitBoard    / prepara tablero visual y estados iniciales
+             JNS PrintStartMsg / imprime mensaje de arranque para el usuario
+             JNS PrintScoreMsg / muestra el score inicial
 
-GameLoop,    LOAD GameOver
-             SKIPCOND 400
-             JUMP EndGame
-             LOAD VictoryF
-             SKIPCOND 400
-             JUMP WinGame
-             Input
-             STORE InputRow
-             Input
-             STORE InputCol
-             Input
-             STORE InputAct
-             LOAD InputRow
-             STORE MulA
-             LOAD Sixteen
-             STORE MulB
-             JNS MulRoutine
-             LOAD MulResult
-             ADD InputCol
-             STORE CellIndex
-             LOAD InputAct
-             SUBT Two
-             SKIPCOND 400
-             JUMP DoReveal
+GameLoop,    LOAD GameOver    / revisa si ya ocurrió una derrota
+             SKIPCOND 400     / si GameOver == 0 sigue; si no, salta la siguiente instrucción
+             JUMP EndGame     / si GameOver ya no es 0 termina la ejecución
+             LOAD VictoryF    / revisa si ya se alcanzó la condición de victoria
+             SKIPCOND 400     / si VictoryF == 0 sigue; si no, salta la siguiente instrucción
+             JUMP WinGame     / si la victoria ya fue detectada, muestra mensaje y termina
+             Input           / recibe fila ingresada por el usuario
+             STORE InputRow   / guarda la fila para usarla después
+             Input           / recibe columna ingresada por el usuario
+             STORE InputCol   / guarda la columna
+             Input           / recibe acción: por ejemplo marcar o revelar
+             STORE InputAct   / guarda la acción elegida
+             LOAD InputRow    / prepara fila para convertirla a índice lineal
+             STORE MulA       / primer operando de la multiplicación = fila
+             LOAD Sixteen     / tamaño de fila del tablero linealizado (16 columnas)
+             STORE MulB       / segundo operando = 16
+             JNS MulRoutine   / calcula fila * 16
+             LOAD MulResult   / toma resultado de la multiplicación
+             ADD InputCol     / suma la columna para obtener índice único de celda
+             STORE CellIndex  / guarda el índice lineal de la celda elegida
+             LOAD InputAct    / revisa qué acción pidió el usuario
+             SUBT Two         / compara contra el valor 2, que aquí representa revelar
+             SKIPCOND 400     / si InputAct == 2 salta la siguiente línea
+             JUMP DoReveal    / si es revelar, se va al flujo de revelar celda
 
-DoFlag,      LOAD CellIndex
-             ADD AddrVisible
-             STORE TmpAddr
-             LOADI TmpAddr
-             SUBT One
-             SKIPCOND 400
-             JUMP CheckFlagState
-             JUMP GameLoop
+DoFlag,      LOAD CellIndex   / si no fue revelar, entra al flujo de banderas sobre esta celda
+             ADD AddrVisible  / calcula dirección de visible[cell]
+             STORE TmpAddr    / guarda dirección temporal para acceso indirecto
+             LOADI TmpAddr    / carga el estado visible actual de la celda
+             SUBT One         / compara con 1 = ya revelada
+             SKIPCOND 400     / si era 1 salta la siguiente instrucción
+             JUMP CheckFlagState / si no estaba revelada, decide si poner o quitar bandera
+             JUMP GameLoop    / si ya estaba revelada, ignora la acción y vuelve al ciclo
 
-CheckFlagState, LOAD CellIndex
-             ADD AddrVisible
-             STORE TmpAddr
-             LOADI TmpAddr
-             SUBT Three
-             SKIPCOND 400
-             JUMP PutFlag
-             JUMP RemoveFlag
+CheckFlagState, LOAD CellIndex / vuelve a calcular visible[cell] para decidir toggle de bandera
+             ADD AddrVisible  / base del arreglo de visibilidad
+             STORE TmpAddr    / dirección temporal
+             LOADI TmpAddr    / lee estado actual
+             SUBT Three       / compara con 3 = celda con bandera
+             SKIPCOND 400     / si es 3 salta la siguiente instrucción
+             JUMP PutFlag     / si no tenía bandera, la coloca
+             JUMP RemoveFlag  / si ya tenía bandera, la quita
 
-PutFlag,     LOAD CellIndex
-             ADD AddrVisible
-             STORE TmpAddr
-             LOAD Three
-             STOREI TmpAddr
+PutFlag,     LOAD CellIndex   / prepara dirección visible[cell] para marcar bandera lógica
+             ADD AddrVisible  / base del estado visible
+             STORE TmpAddr    / dirección objetivo
+             LOAD Three       / 3 representa “bandera puesta”
+             STOREI TmpAddr   / visible[cell] = 3
 
-             LOAD CellIndex
-             ADD AddrDisplay
-             STORE TmpAddr
-             LOAD ColorFlag
-             STOREI TmpAddr
+             LOAD CellIndex   / ahora actualiza el color mostrado en pantalla
+             ADD AddrDisplay  / calcula display[cell]
+             STORE TmpAddr    / dirección de pantalla
+             LOAD ColorFlag   / color usado para bandera
+             STOREI TmpAddr   / pinta la celda como bandera
 
              / score: si hay mina +1, si no hay mina -1
-             LOAD CellIndex
-             ADD AddrMines
-             STORE TmpAddr
-             LOADI TmpAddr
-             SKIPCOND 400
-             JUMP FlagRight
-             JUMP FlagWrong
+             LOAD CellIndex   / revisa si la bandera fue puesta sobre una mina real
+             ADD AddrMines    / calcula mines[cell]
+             STORE TmpAddr    / dirección temporal del arreglo de minas
+             LOADI TmpAddr    / carga valor de mina: normalmente 0 o 1
+             SKIPCOND 400     / si mines[cell] == 0 salta la siguiente línea
+             JUMP FlagRight   / si no era 0, fue acierto: bandera correcta
+             JUMP FlagWrong   / si era 0, fue error: bandera en celda equivocada
 
-FlagRight,   LOAD Score
-             ADD One
-             STORE Score
-             JNS PrintScoreMsg
-             JNS CheckVictory
-             JUMP GameLoop
+FlagRight,   LOAD Score       / toma score actual
+             ADD One          / suma 1 por acertar una mina
+             STORE Score      / guarda nuevo score
+             JNS PrintScoreMsg / actualiza score mostrado al usuario
+             JNS CheckVictory / revisa si con este acierto ya se ganó
+             JUMP GameLoop    / vuelve a esperar otra jugada
 
-FlagWrong,   LOAD Score
-             SUBT One
-             STORE Score
-             JNS PrintScoreMsg
-             JUMP GameLoop
+FlagWrong,   LOAD Score       / toma score actual
+             SUBT One         / resta 1 por poner bandera donde no había mina
+             STORE Score      / guarda score corregido
+             JNS PrintScoreMsg / imprime score actualizado
+             JUMP GameLoop    / continúa juego
 
-RemoveFlag,  LOAD CellIndex
-             ADD AddrVisible
-             STORE TmpAddr
-             LOAD Zero
-             STOREI TmpAddr
+RemoveFlag,  LOAD CellIndex   / prepara quitar la bandera lógica de la celda
+             ADD AddrVisible  / visible[cell]
+             STORE TmpAddr    / dirección temporal
+             LOAD Zero        / 0 representa oculta sin revelar ni bandera
+             STOREI TmpAddr   / visible[cell] = 0
 
-             LOAD CellIndex
-             ADD AddrDisplay
-             STORE TmpAddr
-             LOAD ColorHidden
-             STOREI TmpAddr
+             LOAD CellIndex   / restaura también el aspecto visual de la celda
+             ADD AddrDisplay  / display[cell]
+             STORE TmpAddr    / dirección a escribir
+             LOAD ColorHidden / color de celda oculta
+             STOREI TmpAddr   / pinta de nuevo como escondida
 
              / revertir score: si era mina -1, si no era mina +1
-             LOAD CellIndex
-             ADD AddrMines
-             STORE TmpAddr
-             LOADI TmpAddr
-             SKIPCOND 400
-             JUMP UnflagRight
-             JUMP UnflagWrong
+             LOAD CellIndex   / revisa si la bandera que se quitó era correcta o incorrecta
+             ADD AddrMines    / mines[cell]
+             STORE TmpAddr    / dirección temporal
+             LOADI TmpAddr    / carga si había mina real
+             SKIPCOND 400     / si mines[cell] == 0 salta la siguiente línea
+             JUMP UnflagRight / si no era 0, quitar esa bandera revierte un acierto
+             JUMP UnflagWrong / si era 0, quitar esa bandera deshace un error
 
-UnflagRight, LOAD Score
-             SUBT One
-             STORE Score
-             JNS PrintScoreMsg
-             JUMP GameLoop
+UnflagRight, LOAD Score       / score actual
+             SUBT One         / quita el punto que antes se ganó por bandera correcta
+             STORE Score      / guarda score
+             JNS PrintScoreMsg / lo imprime
+             JUMP GameLoop    / vuelve al juego
 
-UnflagWrong, LOAD Score
-             ADD One
-             STORE Score
-             JNS PrintScoreMsg
-             JUMP GameLoop
+UnflagWrong, LOAD Score       / score actual
+             ADD One          / recupera el punto perdido por bandera incorrecta
+             STORE Score      / guarda score
+             JNS PrintScoreMsg / lo imprime
+             JUMP GameLoop    / vuelve al juego
 
-DoReveal,    LOAD CellIndex
-             ADD AddrVisible
-             STORE TmpAddr
-             LOADI TmpAddr
-             SKIPCOND 400
-             JUMP GameLoop
+DoReveal,    LOAD CellIndex   / entra al flujo de revelar la celda elegida
+             ADD AddrVisible  / calcula visible[cell]
+             STORE TmpAddr    / dirección temporal
+             LOADI TmpAddr    / lee estado actual de visibilidad
+             SKIPCOND 400     / si es 0 permite revelar; si no, salta la siguiente
+             JUMP GameLoop    / si ya tenía algún estado, se ignora la acción
 
-             LOAD CellIndex
-             ADD AddrMines
-             STORE TmpAddr
-             LOADI TmpAddr
-             SKIPCOND 400
-             JUMP Boom
+             LOAD CellIndex   / comprueba si la celda elegida tiene mina
+             ADD AddrMines    / mines[cell]
+             STORE TmpAddr    / dirección temporal
+             LOADI TmpAddr    / lee si hay mina
+             SKIPCOND 400     / si mines[cell] == 0 sigue; si no, salta la siguiente
+             JUMP Boom        / si había mina, explota y termina la partida
 
-             LOAD CellIndex
-             ADD AddrReal
-             STORE TmpAddr
-             LOADI TmpAddr
-             SKIPCOND 400
-             JUMP RevealSingle
-             JUMP FloodStart
+             LOAD CellIndex   / si no hay mina, revisa el número real de la celda
+             ADD AddrReal     / real[cell] = número de minas vecinas
+             STORE TmpAddr    / dirección temporal
+             LOADI TmpAddr    / carga ese valor real
+             SKIPCOND 400     / si es 0 salta la siguiente; si no, no la salta
+             JUMP RevealSingle / si es número distinto de 0, revela solo esta celda
+             JUMP FloodStart  / si es 0, inicia flood fill para expandir vecinas
 
-RevealSingle, LOAD CellIndex
-             STORE CurrCell
-             JNS RevealCell
-             JUMP GameLoop
+RevealSingle, LOAD CellIndex  / copia la celda elegida a la variable de trabajo CurrCell
+             STORE CurrCell   / CurrCell será usada por RevealCell
+             JNS RevealCell   / revela la celda usando rutina reutilizable
+             JUMP GameLoop    / vuelve al juego tras revelar una sola casilla
 
-FloodStart,  LOAD Zero
-             STORE StackTop
+FloodStart,  LOAD Zero        / inicializa pila para flood fill desde cero
+             STORE StackTop   / StackTop = 0, pila vacía
 
              / marcar celda inicial como en cola (=2)
-             LOAD CellIndex
-             ADD AddrVisible
-             STORE TmpAddr
-             LOAD Two
-             STOREI TmpAddr
+             LOAD CellIndex   / toma celda origen del flood fill
+             ADD AddrVisible  / visible[cell]
+             STORE TmpAddr    / dirección temporal
+             LOAD Two         / 2 representa “en cola / pendiente de procesar”
+             STOREI TmpAddr   / marca la celda para no volverla a encolar
 
              / push celda inicial
-             LOAD StackTop
-             ADD AddrStack
-             STORE TmpAddr
-             LOAD CellIndex
-             STOREI TmpAddr
-             LOAD StackTop
-             ADD One
-             STORE StackTop
+             LOAD StackTop    / toma tope actual de pila
+             ADD AddrStack    / calcula posición de stack[StackTop]
+             STORE TmpAddr    / dirección donde guardar
+             LOAD CellIndex   / valor a apilar = celda inicial
+             STOREI TmpAddr   / stack[top] = CellIndex
+             LOAD StackTop    / recupera tope
+             ADD One          / incrementa tope después del push
+             STORE StackTop   / nuevo tamaño / tope lógico de la pila
 
-FloodLoop,   LOAD StackTop
-             SKIPCOND 400
-             JUMP FloodPop
-             JUMP GameLoop
+FloodLoop,   LOAD StackTop    / revisa si aún hay celdas pendientes en la pila
+             SKIPCOND 400     / si StackTop == 0 salta la siguiente instrucción
+             JUMP FloodPop    / si no está vacía, saca una celda y la procesa
+             JUMP GameLoop    / si quedó vacía, termina flood fill y vuelve al juego
 
-FloodPop,    LOAD StackTop
-             SUBT One
-             STORE StackTop
-             ADD AddrStack
-             STORE TmpAddr
-             LOADI TmpAddr
-             STORE CurrCell
+FloodPop,    LOAD StackTop    / prepara pop: bajar tope una posición
+             SUBT One         / StackTop - 1
+             STORE StackTop   / guarda nuevo tope
+             ADD AddrStack    / calcula dirección del elemento desapilado
+             STORE TmpAddr    / dirección temporal
+             LOADI TmpAddr    / lee celda sacada de la pila
+             STORE CurrCell   / la deja como celda actual de trabajo
 
              / si ya estaba revelada (=1), saltar
-             LOAD CurrCell
-             ADD AddrVisible
-             STORE TmpAddr
-             LOADI TmpAddr
-             SUBT One
-             SKIPCOND 400
-             JUMP FloodContinue
-             JUMP FloodLoop
+             LOAD CurrCell    / revisa estado visible de CurrCell
+             ADD AddrVisible  / visible[CurrCell]
+             STORE TmpAddr    / dirección temporal
+             LOADI TmpAddr    / carga estado visible
+             SUBT One         / compara con 1 = ya revelada definitivamente
+             SKIPCOND 400     / si era 1, salta la siguiente línea
+             JUMP FloodContinue / si no era 1, todavía toca procesarla
+             JUMP FloodLoop   / si ya estaba revelada, ignora y pasa a la siguiente
 
-FloodContinue, JNS RevealCell
+FloodContinue, JNS RevealCell / revela la celda actual usando rutina común
 
              / si no es 0, no expandir vecinos
-             LOAD CurrCell
-             ADD AddrReal
-             STORE TmpAddr
-             LOADI TmpAddr
-             SKIPCOND 400
-             JUMP FloodLoop
+             LOAD CurrCell    / revisa valor real de la celda actual
+             ADD AddrReal     / real[CurrCell]
+             STORE TmpAddr    / dirección temporal
+             LOADI TmpAddr    / carga número real
+             SKIPCOND 400     / si real == 0 sigue; si no, salta la siguiente línea
+             JUMP FloodLoop   / si no es cero, no expande vecinos y sigue con pila
 
-             LOAD Zero
-             STORE NeighborCnt
-             LOAD CurrCell
-             STORE MulA
-             LOAD Eight
-             STORE MulB
-             JNS MulRoutine
-             LOAD MulResult
-             ADD AddrNeighbors
-             STORE NeighborBase
+             LOAD Zero        / si sí era cero, empezará a recorrer sus 8 vecinos
+             STORE NeighborCnt / contador de vecinos = 0
+             LOAD CurrCell    / prepara calcular bloque de vecinos de esta celda
+             STORE MulA       / primer operando = índice de celda
+             LOAD Eight       / cada celda tiene 8 vecinos guardados
+             STORE MulB       / segundo operando = 8
+             JNS MulRoutine   / calcula CurrCell * 8
+             LOAD MulResult   / obtiene desplazamiento dentro del arreglo de vecinos
+             ADD AddrNeighbors / suma base del arreglo Neighbor table
+             STORE NeighborBase / guarda dirección base de los 8 vecinos de CurrCell
 
-NeighborLoop, LOAD NeighborCnt
-             SUBT Eight
-             SKIPCOND 400
-             JUMP NeighborBody
-             JUMP FloodLoop
+NeighborLoop, LOAD NeighborCnt / revisa si ya procesó los 8 vecinos
+             SUBT Eight       / compara contador con 8
+             SKIPCOND 400     / si todavía no llega a 8, sigue; si ya llegó, salta
+             JUMP NeighborBody / procesa vecino actual
+             JUMP FloodLoop   / si ya terminó los 8 vecinos, vuelve al flood principal
 
-NeighborBody, LOAD NeighborBase
-             ADD NeighborCnt
-             STORE TmpAddr
-             LOADI TmpAddr
-             STORE NeighborVal
+NeighborBody, LOAD NeighborBase / toma inicio de lista de vecinos de CurrCell
+             ADD NeighborCnt  / avanza al vecino actual
+             STORE TmpAddr    / dirección del vecino en la tabla
+             LOADI TmpAddr    / carga valor del vecino
+             STORE NeighborVal / guarda índice del vecino actual
 
              / si vecino = -1, ignorar
-             LOAD NeighborVal
-             ADD One
-             SKIPCOND 400
-             JUMP CheckNeighborVisible
-             JUMP NeighborNext
+             LOAD NeighborVal / en la tabla, -1 se usa para “no existe vecino” por borde
+             ADD One          / si era -1, al sumarle 1 queda 0
+             SKIPCOND 400     / si el resultado fue 0 salta la siguiente línea
+             JUMP CheckNeighborVisible / si no era -1, puede analizarse
+             JUMP NeighborNext / si era -1, lo ignora y pasa al siguiente
 
-CheckNeighborVisible, LOAD NeighborVal
-             ADD AddrVisible
-             STORE TmpAddr
-             LOADI TmpAddr
-             SKIPCOND 400
-             JUMP NeighborNext
+CheckNeighborVisible, LOAD NeighborVal / revisa si el vecino ya fue visto o encolado
+             ADD AddrVisible  / visible[NeighborVal]
+             STORE TmpAddr    / dirección temporal
+             LOADI TmpAddr    / carga estado visible del vecino
+             SKIPCOND 400     / si está en 0 todavía no fue tocado
+             JUMP NeighborNext / si no es 0, ya estaba revelado o en cola y se omite
 
-PushNeighbor,LOAD NeighborVal
-             ADD AddrVisible
-             STORE TmpAddr
-             LOAD Two
-             STOREI TmpAddr
+PushNeighbor,LOAD NeighborVal / prepara marcar vecino como “en cola”
+             ADD AddrVisible  / visible[NeighborVal]
+             STORE TmpAddr    / dirección temporal
+             LOAD Two         / 2 = pendiente en pila
+             STOREI TmpAddr   / evita duplicarlo luego
 
              / push vecino
-             LOAD StackTop
-             ADD AddrStack
-             STORE TmpAddr
-             LOAD NeighborVal
-             STOREI TmpAddr
-             LOAD StackTop
-             ADD One
-             STORE StackTop
+             LOAD StackTop    / toma tope actual para apilar vecino
+             ADD AddrStack    / stack[top]
+             STORE TmpAddr    / dirección temporal
+             LOAD NeighborVal / vecino a insertar
+             STOREI TmpAddr   / lo guarda en la pila
+             LOAD StackTop    / recupera tope
+             ADD One          / incrementa pila
+             STORE StackTop   / nuevo tope
 
-NeighborNext, LOAD NeighborCnt
-             ADD One
-             STORE NeighborCnt
-             JUMP NeighborLoop
+NeighborNext, LOAD NeighborCnt / avanza al siguiente vecino de los 8 posibles
+             ADD One          / contador++
+             STORE NeighborCnt / guarda avance
+             JUMP NeighborLoop / repite hasta terminar los vecinos
 
-RevealCell,  HEX 0
-             LOAD CurrCell
-             ADD AddrVisible
-             STORE TmpAddr
-             LOAD One
-             STOREI TmpAddr
-             LOAD CurrCell
-             ADD AddrColors
-             STORE TmpAddr
-             LOADI TmpAddr
-             STORE TmpColor
-             LOAD CurrCell
-             ADD AddrDisplay
-             STORE TmpAddr
-             LOAD TmpColor
-             STOREI TmpAddr
-             JUMPI RevealCell
+RevealCell,  HEX 0            / subrutina: revela CurrCell en lógica y en display
+             LOAD CurrCell    / toma la celda actual
+             ADD AddrVisible  / visible[CurrCell]
+             STORE TmpAddr    / dirección temporal
+             LOAD One         / 1 = revelada definitivamente
+             STOREI TmpAddr   / marca lógica de revelado
+             LOAD CurrCell    / ahora busca el color correspondiente a esa celda
+             ADD AddrColors   / colors[CurrCell]
+             STORE TmpAddr    / dirección temporal
+             LOADI TmpAddr    / lee color predefinido para el número/celda
+             STORE TmpColor   / lo guarda temporalmente
+             LOAD CurrCell    / calcula destino visual
+             ADD AddrDisplay  / display[CurrCell]
+             STORE TmpAddr    / dirección temporal
+             LOAD TmpColor    / recupera color a mostrar
+             STOREI TmpAddr   / lo pinta en pantalla
+             JUMPI RevealCell / regresa al punto desde donde se llamó la subrutina
 
-Boom,        LOAD CellIndex
-             ADD AddrDisplay
-             STORE TmpAddr
-             LOAD ColorMine
-             STOREI TmpAddr
-             LOAD Zero
-             STORE BoomIdx
+Boom,        LOAD CellIndex   / rutina de derrota: muestra primero la mina tocada
+             ADD AddrDisplay  / display[cell]
+             STORE TmpAddr    / dirección temporal
+             LOAD ColorMine   / color de mina
+             STOREI TmpAddr   / pinta la celda detonada
+             LOAD Zero        / prepara recorrer todas las celdas del tablero
+             STORE BoomIdx    / índice del barrido = 0
 
-BoomLoop,    LOAD BoomIdx
-             ADD AddrMines
-             STORE TmpAddr
-             LOADI TmpAddr
-             SKIPCOND 400
-             JUMP BoomNext
-             LOAD BoomIdx
-             ADD AddrDisplay
-             STORE TmpAddr
-             LOAD ColorMine
-             STOREI TmpAddr
+BoomLoop,    LOAD BoomIdx     / revisa una celda del tablero por vez
+             ADD AddrMines    / mines[BoomIdx]
+             STORE TmpAddr    / dirección temporal
+             LOADI TmpAddr    / carga si en esa celda hay mina
+             SKIPCOND 400     / si no hay mina salta la siguiente
+             JUMP BoomNext    / si no hay mina, sigue a la próxima celda
+             LOAD BoomIdx     / si sí hay mina, prepara mostrarla
+             ADD AddrDisplay  / display[BoomIdx]
+             STORE TmpAddr    / dirección destino visual
+             LOAD ColorMine   / color de mina
+             STOREI TmpAddr   / revela visualmente esa mina
 
-BoomNext,    LOAD BoomIdx
-             ADD One
-             STORE BoomIdx
-             SUBT N256
-             SKIPCOND 400
-             JUMP BoomLoop
-             LOAD One
-             STORE GameOver
-             JUMP LoseGame
+BoomNext,    LOAD BoomIdx     / avanza en el barrido completo del tablero
+             ADD One          / índice++
+             STORE BoomIdx    / guarda nuevo índice
+             SUBT N256        / compara contra 256 celdas totales
+             SKIPCOND 400     / si todavía falta, sigue; si llegó a 256, salta
+             JUMP BoomLoop    / repite para siguiente celda
+             LOAD One         / al terminar, marca juego perdido
+             STORE GameOver   / GameOver = 1
+             JUMP LoseGame    / muestra mensaje de derrota y detiene
 
-MulRoutine,  HEX 0
-             LOAD Zero
-             STORE MulResult
-             STORE MulCount
+MulRoutine,  HEX 0            / subrutina genérica de multiplicación por sumas repetidas
+             LOAD Zero        / inicia resultado en 0
+             STORE MulResult  / acumulador del producto
+             STORE MulCount   / contador de repeticiones
 
-MulL,        LOAD MulCount
-             SUBT MulB
-             SKIPCOND 400
-             JUMP MulBody
-             JUMPI MulRoutine
+MulL,        LOAD MulCount    / compara cuántas veces ya sumó
+             SUBT MulB        / contra el multiplicador MulB
+             SKIPCOND 400     / si aún no llega, continúa; si ya llegó, retorna
+             JUMP MulBody     / ejecuta una suma más
+             JUMPI MulRoutine / vuelve al llamador
 
-MulBody,     LOAD MulResult
-             ADD MulA
-             STORE MulResult
-             LOAD MulCount
-             ADD One
-             STORE MulCount
-             JUMP MulL
+MulBody,     LOAD MulResult   / toma producto parcial
+             ADD MulA         / suma el multiplicando
+             STORE MulResult  / guarda nuevo producto parcial
+             LOAD MulCount    / toma contador
+             ADD One          / contador++
+             STORE MulCount   / guarda avance
+             JUMP MulL        / repite mientras falten sumas
 
-CheckVictory, HEX 0
-             LOAD Score
-             SUBT MineTotal
-             SKIPCOND 400
-             JUMP NotVictory
-             LOAD One
-             STORE VictoryF
-             JUMP WinGame
-NotVictory,  JUMPI CheckVictory
+CheckVictory, HEX 0           / subrutina: gana cuando Score == MineTotal
+             LOAD Score       / toma score actual
+             SUBT MineTotal   / compara contra total de minas del mapa
+             SKIPCOND 400     / si son iguales salta la siguiente línea
+             JUMP NotVictory  / si todavía no llega, retorna sin ganar
+             LOAD One         / si son iguales, activa bandera de victoria
+             STORE VictoryF   / VictoryF = 1
+             JUMP WinGame     / entra directo a mensaje de victoria
+NotVictory,  JUMPI CheckVictory / si no ganó, vuelve al llamador
 
-PrintStartMsg, HEX 0
-             LOAD MsgStartAddr
-             STORE StrPtr
-             JNS PrintString
-             LOAD NewLine
-             Output
-             JUMPI PrintStartMsg
+PrintStartMsg, HEX 0          / subrutina: imprime mensaje inicial
+             LOAD MsgStartAddr / carga dirección del texto de inicio
+             STORE StrPtr     / puntero al string
+             JNS PrintString  / imprime la cadena carácter por carácter
+             LOAD NewLine     / prepara salto de línea
+             Output          / lo muestra
+             JUMPI PrintStartMsg / retorna
 
-PrintScoreMsg, HEX 0
-             LOAD MsgScoreAddr
-             STORE StrPtr
-             JNS PrintString
-             LOAD Score
-             STORE NumToPrint
-             JNS PrintSigned
-             LOAD NewLine
-             Output
-             JUMPI PrintScoreMsg
+PrintScoreMsg, HEX 0          / subrutina: imprime “SCORE: ” y luego el valor numérico
+             LOAD MsgScoreAddr / dirección del texto fijo de score
+             STORE StrPtr     / puntero del string
+             JNS PrintString  / imprime la etiqueta
+             LOAD Score       / toma valor actual del score
+             STORE NumToPrint / lo deja listo para impresión numérica
+             JNS PrintSigned  / imprime número con signo si hace falta
+             LOAD NewLine     / agrega salto de línea
+             Output          / lo muestra
+             JUMPI PrintScoreMsg / retorna
 
-PrintString, HEX 0
-PrintStringLoop,LOADI StrPtr
-             SKIPCOND 400
-             JUMP PrintStringBody
-             JUMPI PrintString
+PrintString, HEX 0            / subrutina: imprime string terminado en 0
+PrintStringLoop,LOADI StrPtr  / carga carácter apuntado por StrPtr
+             SKIPCOND 400     / si el carácter es 0, salta la siguiente instrucción
+             JUMP PrintStringBody / si no es 0, imprime el carácter
+             JUMPI PrintString / si era 0, fin de cadena y retorno
 
-PrintStringBody, Output
-             LOAD StrPtr
-             ADD One
-             STORE StrPtr
-             JUMP PrintStringLoop
+PrintStringBody, Output       / saca el carácter actual a salida
+             LOAD StrPtr      / toma el puntero
+             ADD One          / avanza al siguiente carácter
+             STORE StrPtr     / guarda puntero actualizado
+             JUMP PrintStringLoop / continúa hasta llegar al terminador 0
 
-PrintSigned, HEX 0
-             LOAD NumToPrint
-             SKIPCOND 000
-             JUMP PrintSignedPos
-             LOAD MinusChar
-             Output
-             LOAD Zero
-             SUBT NumToPrint
-             STORE NumWork
-             JUMP PrintUnsigned
+PrintSigned, HEX 0            / subrutina: imprime número con manejo de negativos
+             LOAD NumToPrint  / carga número solicitado
+             SKIPCOND 000     / si es negativo, salta la siguiente línea
+             JUMP PrintSignedPos / si no es negativo, va a flujo positivo
+             LOAD MinusChar   / si era negativo, primero imprime "-"
+             Output          / lo muestra
+             LOAD Zero        / prepara calcular valor absoluto
+             SUBT NumToPrint  / 0 - número = valor positivo equivalente
+             STORE NumWork    / guarda magnitud positiva
+             JUMP PrintUnsigned / imprime como entero sin signo
 
-PrintSignedPos, LOAD NumToPrint
-             STORE NumWork
+PrintSignedPos, LOAD NumToPrint / si ya era positivo, solo lo copia
+             STORE NumWork    / NumWork = número a imprimir
 
-PrintUnsigned, LOAD Zero
-             STORE TensCount
+PrintUnsigned, LOAD Zero      / inicia contador de decenas en 0
+             STORE TensCount  / TensCount servirá para dividir por 10
 
-PrintDivLoop, LOAD NumWork
-             SUBT Ten
-             SKIPCOND 000
-             JUMP PrintDivBody
-             JUMP PrintDivDone
+PrintDivLoop, LOAD NumWork    / toma valor restante por convertir
+             SUBT Ten         / intenta restar 10
+             SKIPCOND 000     / si quedó negativo, salta la siguiente línea
+             JUMP PrintDivBody / si todavía era >= 10, registra una decena más
+             JUMP PrintDivDone / si ya es < 10, termina división
 
-PrintDivBody, STORE NumWork
-             LOAD TensCount
-             ADD One
-             STORE TensCount
-             JUMP PrintDivLoop
+PrintDivBody, STORE NumWork   / guarda resto parcial después de quitar 10
+             LOAD TensCount   / toma cuántas decenas lleva
+             ADD One          / suma una decena
+             STORE TensCount  / guarda nuevo conteo
+             JUMP PrintDivLoop / repite hasta que resto sea menor que 10
 
-PrintDivDone, LOAD TensCount
-             SKIPCOND 400
-             JUMP PrintTens
-             JUMP PrintUnits
+PrintDivDone, LOAD TensCount  / al acabar, decide si debe imprimir decenas
+             SKIPCOND 400     / si TensCount == 0 salta la siguiente línea
+             JUMP PrintTens   / si hay al menos una decena, imprime ese dígito
+             JUMP PrintUnits  / si no, imprime solo unidades
 
-PrintTens,   LOAD TensCount
-             ADD AsciiZero
-             Output
+PrintTens,   LOAD TensCount   / convierte decenas a ASCII
+             ADD AsciiZero    / suma código del '0'
+             Output          / imprime dígito de decenas
 
-PrintUnits,  LOAD NumWork
-             ADD AsciiZero
-             Output
-             JUMPI PrintSigned
+PrintUnits,  LOAD NumWork     / convierte unidades a ASCII
+             ADD AsciiZero    / suma código del '0'
+             Output          / imprime dígito de unidades
+             JUMPI PrintSigned / retorna al llamador
 
-InitBoard,   HEX 0
-             LOAD Zero
-             STORE InitIdx
+InitBoard,   HEX 0            / subrutina: inicializa display y arreglo visible
+             LOAD Zero        / índice inicial = 0
+             STORE InitIdx    / guarda índice del barrido
 
-InitLoop,    LOAD InitIdx
-             ADD AddrDisplay
-             STORE TmpAddr
-             LOAD ColorHidden
-             STOREI TmpAddr
+InitLoop,    LOAD InitIdx     / trabaja una celda por vez
+             ADD AddrDisplay  / display[InitIdx]
+             STORE TmpAddr    / dirección temporal
+             LOAD ColorHidden / color base de celda oculta
+             STOREI TmpAddr   / pinta la celda como escondida
 
-             LOAD InitIdx
-             ADD AddrVisible
-             STORE TmpAddr
-             LOAD Zero
-             STOREI TmpAddr
+             LOAD InitIdx     / ahora limpia visible[InitIdx]
+             ADD AddrVisible  / visible[InitIdx]
+             STORE TmpAddr    / dirección temporal
+             LOAD Zero        / estado oculto
+             STOREI TmpAddr   / visible = 0
 
-             LOAD InitIdx
-             ADD One
-             STORE InitIdx
-             SUBT N256
-             SKIPCOND 400
-             JUMP InitLoop
+             LOAD InitIdx     / avanza al siguiente índice
+             ADD One          / índice++
+             STORE InitIdx    / guarda nuevo índice
+             SUBT N256        / compara contra total de 256 celdas
+             SKIPCOND 400     / si faltan celdas, sigue; si ya llegó al final, salta
+             JUMP InitLoop    / repite inicialización
+             
+             JUMPI InitBoard  / retorna cuando ya inicializó todo el tablero
 
-             JUMPI InitBoard
+EndGame,     HALT             / fin general del programa
 
-EndGame,     HALT
+WinGame,     LOAD MsgWinAddr  / carga dirección del mensaje de victoria
+             STORE StrPtr     / puntero al string
+             JNS PrintString  / imprime mensaje
+             LOAD NewLine     / salto de línea final
+             Output          / lo muestra
+             HALT            / termina programa al ganar
 
-WinGame,     LOAD MsgWinAddr
-             STORE StrPtr
-             JNS PrintString
-             LOAD NewLine
-             Output
-             HALT
+LoseGame,    LOAD MsgLoseAddr / carga texto de derrota
+             STORE StrPtr     / puntero
+             JNS PrintString  / imprime mensaje base
+             LOAD Score       / toma score final
+             STORE NumToPrint / lo prepara para impresión
+             JNS PrintSigned  / imprime score alcanzado
+             LOAD MsgBombsAddr / carga texto adicional “ BOMBAS”
+             STORE StrPtr     / puntero al texto
+             JNS PrintString  / imprime resto del mensaje
+             LOAD NewLine     / salto de línea final
+             Output          / lo muestra
+             HALT            / termina programa al perder
 
-LoseGame,    LOAD MsgLoseAddr
-             STORE StrPtr
-             JNS PrintString
-             LOAD Score
-             STORE NumToPrint
-             JNS PrintSigned
-             LOAD MsgBombsAddr
-             STORE StrPtr
-             JNS PrintString
-             LOAD NewLine
-             Output
-             HALT
+Zero,        DEC 0            / constante 0
+One,         DEC 1            / constante 1
+Two,         DEC 2            / constante 2
+Three,       DEC 3            / constante 3
+Eight,       DEC 8            / constante 8 = número de vecinos posibles
+Sixteen,     DEC 16           / constante 16 = ancho del tablero linealizado
+N256,        DEC 256          / total de celdas del tablero 16x16
+Ten,         DEC 10           / base decimal para imprimir números
+MineTotal,   DEC __MINE_TOTAL__ / aquí debe reemplazarse por el total real de minas del mapa
+AsciiZero,   HEX 0030         / código ASCII/Unicode del carácter '0'
+MinusChar,   HEX 002D         / código del signo menos
+NewLine,     HEX 000A         / código de salto de línea
 
-Zero,        DEC 0
-One,         DEC 1
-Two,         DEC 2
-Three,       DEC 3
-Eight,       DEC 8
-Sixteen,     DEC 16
-N256,        DEC 256
-Ten,         DEC 10
-MineTotal,   DEC __MINE_TOTAL__
-AsciiZero,   HEX 0030
-MinusChar,   HEX 002D
-NewLine,     HEX 000A
+GameOver,    DEC 0            / bandera de derrota
+VictoryF,    DEC 0            / bandera de victoria
+Score,       DEC 0            / puntaje actual del juego
+InputRow,    DEC 0            / fila ingresada por usuario
+InputCol,    DEC 0            / columna ingresada por usuario
+InputAct,    DEC 0            / acción ingresada por usuario
+CellIndex,   DEC 0            / índice lineal de la celda seleccionada
+TmpAddr,     DEC 0            / variable temporal para direcciones de memoria
+TmpColor,    DEC 0            / variable temporal para color a mostrar
+BoomIdx,     DEC 0            / índice usado al revelar todas las minas
+InitIdx,     DEC 0            / índice usado para inicializar tablero
+CurrCell,    DEC 0            / celda actual en reveal/flood fill
+StackTop,    DEC 0            / tamaño/tope lógico de la pila del flood fill
+NeighborCnt, DEC 0            / contador de vecinos del 0 al 7
+NeighborBase, DEC 0           / dirección base de los 8 vecinos de CurrCell
+NeighborVal, DEC 0            / vecino actual leído de la tabla
+MulA,        DEC 0            / operando A de multiplicación genérica
+MulB,        DEC 0            / operando B de multiplicación genérica
+MulResult,   DEC 0            / resultado de multiplicación
+MulCount,    DEC 0            / contador interno de la multiplicación
+StrPtr,      DEC 0            / puntero a cadena de texto
+NumToPrint,  DEC 0            / número original a imprimir
+NumWork,     DEC 0            / copia de trabajo para convertir a decimal
+TensCount,   DEC 0            / cantidad de decenas al imprimir
 
-GameOver,    DEC 0
-VictoryF,    DEC 0
-Score,       DEC 0
-InputRow,    DEC 0
-InputCol,    DEC 0
-InputAct,    DEC 0
-CellIndex,   DEC 0
-TmpAddr,     DEC 0
-TmpColor,    DEC 0
-BoomIdx,     DEC 0
-InitIdx,     DEC 0
-CurrCell,    DEC 0
-StackTop,    DEC 0
-NeighborCnt, DEC 0
-NeighborBase, DEC 0
-NeighborVal, DEC 0
-MulA,        DEC 0
-MulB,        DEC 0
-MulResult,   DEC 0
-MulCount,    DEC 0
-StrPtr,      DEC 0
-NumToPrint,  DEC 0
-NumWork,     DEC 0
-TensCount,   DEC 0
+AddrReal,      HEX 0238       / base del arreglo con valores reales de cada celda
+AddrMines,     HEX 0338       / base del arreglo de minas
+AddrColors,    HEX 0438       / base del arreglo de colores visibles por valor
+AddrVisible,   HEX 0538       / base del arreglo de estados visibles/flag/en cola
+AddrNeighbors, HEX 0638       / base de tabla de vecinos precalculados
+AddrStack,     HEX 0E00       / base de la pila usada por flood fill
+AddrDisplay,   HEX 0F00       / base del buffer/pantalla del tablero
 
-AddrReal,      HEX 0238
-AddrMines,     HEX 0338
-AddrColors,    HEX 0438
-AddrVisible,   HEX 0538
-AddrNeighbors, HEX 0638
-AddrStack,     HEX 0E00
-AddrDisplay,   HEX 0F00
+MsgStartAddr,  HEX 01CB       / dirección donde empieza el texto de inicio
+MsgScoreAddr,  HEX 01E0       / dirección del texto “SCORE: ”
+MsgLoseAddr,   HEX 01E8       / dirección del mensaje de derrota
+MsgBombsAddr,  HEX 0207       / dirección del texto “ BOMBAS”
+MsgWinAddr,    HEX 020F       / dirección del mensaje de victoria
 
-MsgStartAddr,  HEX 01CB
-MsgScoreAddr,  HEX 01E0
-MsgLoseAddr,   HEX 01E8
-MsgBombsAddr,  HEX 0207
-MsgWinAddr,    HEX 020F
+ColorFlag,   HEX FFE0         / color reservado para bandera
+ColorMine,   HEX 0000         / color reservado para mina
+ColorHidden, HEX 39E7         / color de celda oculta
 
-ColorFlag,   HEX FFE0
-ColorMine,   HEX 0000
-ColorHidden, HEX 39E7
+/ --- PADDING hasta 0x120 (25 celdas) --- / relleno para alinear la memoria a la dirección esperada
+DEC 0        / padding
+DEC 0        / padding
+DEC 0        / padding
+DEC 0        / padding
+DEC 0        / padding
+DEC 0        / padding
+DEC 0        / padding
+DEC 0        / padding
+DEC 0        / padding
+DEC 0        / padding
+DEC 0        / padding
+DEC 0        / padding
+DEC 0        / padding
+DEC 0        / padding
+DEC 0        / padding
+DEC 0        / padding
+DEC 0        / padding
+DEC 0        / padding
+DEC 0        / padding
+DEC 0        / padding
+DEC 0        / padding
+DEC 0        / padding
+DEC 0        / padding
+DEC 0        / padding
+DEC 0        / padding
 
-/ --- PADDING hasta 0x120 (25 celdas) ---
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
-DEC 0
+MsgStart,    HEX 0048         / 'H'
+             HEX 0041         / 'A'
+             HEX 0020         / ' '
+             HEX 0045         / 'E'
+             HEX 004D         / 'M'
+             HEX 0050         / 'P'
+             HEX 0045         / 'E'
+             HEX 005A         / 'Z'
+             HEX 0041         / 'A'
+             HEX 0044         / 'D'
+             HEX 004F         / 'O'
+             HEX 0020         / ' '
+             HEX 0045         / 'E'
+             HEX 004C         / 'L'
+             HEX 0020         / ' '
+             HEX 004A         / 'J'
+             HEX 0055         / 'U'
+             HEX 0045         / 'E'
+             HEX 0047         / 'G'
+             HEX 004F         / 'O'
+             DEC 0            / fin del string
 
-MsgStart,    HEX 0048
-             HEX 0041
-             HEX 0020
-             HEX 0045
-             HEX 004D
-             HEX 0050
-             HEX 0045
-             HEX 005A
-             HEX 0041
-             HEX 0044
-             HEX 004F
-             HEX 0020
-             HEX 0045
-             HEX 004C
-             HEX 0020
-             HEX 004A
-             HEX 0055
-             HEX 0045
-             HEX 0047
-             HEX 004F
-             DEC 0
+MsgScore,    HEX 0053         / 'S'
+             HEX 0043         / 'C'
+             HEX 004F         / 'O'
+             HEX 0052         / 'R'
+             HEX 0045         / 'E'
+             HEX 003A         / ':'
+             HEX 0020         / ' '
+             DEC 0            / fin del string
 
-MsgScore,    HEX 0053
-             HEX 0043
-             HEX 004F
-             HEX 0052
-             HEX 0045
-             HEX 003A
-             HEX 0020
-             DEC 0
+MsgLose,     HEX 0050         / 'P'
+             HEX 0045         / 'E'
+             HEX 0052         / 'R'
+             HEX 0044         / 'D'
+             HEX 0049         / 'I'
+             HEX 0053         / 'S'
+             HEX 0054         / 'T'
+             HEX 0045         / 'E'
+             HEX 002C         / ','
+             HEX 0020         / ' '
+             HEX 0048         / 'H'
+             HEX 0041         / 'A'
+             HEX 0053         / 'S'
+             HEX 0020         / ' '
+             HEX 0045         / 'E'
+             HEX 004E         / 'N'
+             HEX 0043         / 'C'
+             HEX 004F         / 'O'
+             HEX 004E         / 'N'
+             HEX 0054         / 'T'
+             HEX 0052         / 'R'
+             HEX 0041         / 'A'
+             HEX 0044         / 'D'
+             HEX 004F         / 'O'
+             HEX 0020         / ' '
+             HEX 0053         / 'S'
+             HEX 004F         / 'O'
+             HEX 004C         / 'L'
+             HEX 004F         / 'O'
+             HEX 0020         / ' '
+             DEC 0            / fin del string, luego se imprime score y “ BOMBAS”
 
-MsgLose,     HEX 0050
-             HEX 0045
-             HEX 0052
-             HEX 0044
-             HEX 0049
-             HEX 0053
-             HEX 0054
-             HEX 0045
-             HEX 002C
-             HEX 0020
-             HEX 0048
-             HEX 0041
-             HEX 0053
-             HEX 0020
-             HEX 0045
-             HEX 004E
-             HEX 0043
-             HEX 004F
-             HEX 004E
-             HEX 0054
-             HEX 0052
-             HEX 0041
-             HEX 0044
-             HEX 004F
-             HEX 0020
-             HEX 0053
-             HEX 004F
-             HEX 004C
-             HEX 004F
-             HEX 0020
-             DEC 0
+MsgBombs,    HEX 0020         / ' '
+             HEX 0042         / 'B'
+             HEX 004F         / 'O'
+             HEX 004D         / 'M'
+             HEX 0042         / 'B'
+             HEX 0041         / 'A'
+             HEX 0053         / 'S'
+             DEC 0            / fin del string
 
-MsgBombs,    HEX 0020
-             HEX 0042
-             HEX 004F
-             HEX 004D
-             HEX 0042
-             HEX 0041
-             HEX 0053
-             DEC 0
+MsgWin,      HEX 0047         / 'G'
+             HEX 0041         / 'A'
+             HEX 004E         / 'N'
+             HEX 0041         / 'A'
+             HEX 0053         / 'S'
+             HEX 0054         / 'T'
+             HEX 0045         / 'E'
+             HEX 002C         / ','
+             HEX 0020         / ' '
+             HEX 0048         / 'H'
+             HEX 0041         / 'A'
+             HEX 0053         / 'S'
+             HEX 0020         / ' '
+             HEX 0045         / 'E'
+             HEX 004E         / 'N'
+             HEX 0043         / 'C'
+             HEX 004F         / 'O'
+             HEX 004E         / 'N'
+             HEX 0054         / 'T'
+             HEX 0052         / 'R'
+             HEX 0041         / 'A'
+             HEX 0044         / 'D'
+             HEX 004F         / 'O'
+             HEX 0020         / ' '
+             HEX 0054         / 'T'
+             HEX 004F         / 'O'
+             HEX 0044         / 'D'
+             HEX 0041         / 'A'
+             HEX 0053         / 'S'
+             HEX 0020         / ' '
+             HEX 004C         / 'L'
+             HEX 0041         / 'A'
+             HEX 0053         / 'S'
+             HEX 0020         / ' '
+             HEX 0042         / 'B'
+             HEX 004F         / 'O'
+             HEX 004D         / 'M'
+             HEX 0042         / 'B'
+             HEX 0041         / 'A'
+             HEX 0053         / 'S'
+             DEC 0            / fin del string
 
-MsgWin,      HEX 0047
-             HEX 0041
-             HEX 004E
-             HEX 0041
-             HEX 0053
-             HEX 0054
-             HEX 0045
-             HEX 002C
-             HEX 0020
-             HEX 0048
-             HEX 0041
-             HEX 0053
-             HEX 0020
-             HEX 0045
-             HEX 004E
-             HEX 0043
-             HEX 004F
-             HEX 004E
-             HEX 0054
-             HEX 0052
-             HEX 0041
-             HEX 0044
-             HEX 004F
-             HEX 0020
-             HEX 0054
-             HEX 004F
-             HEX 0044
-             HEX 0041
-             HEX 0053
-             HEX 0020
-             HEX 004C
-             HEX 0041
-             HEX 0053
-             HEX 0020
-             HEX 0042
-             HEX 004F
-             HEX 004D
-             HEX 0042
-             HEX 0041
-             HEX 0053
-             DEC 0
-
-/ ================================================================
-/ MAPA DE JUEGO - GENERADO POR PYTHON (solo cambiar esta seccion)
-/ ================================================================
+/ ================================================================ / desde aquí empieza la sección generada automáticamente
+/ MAPA DE JUEGO - GENERADO POR PYTHON (solo cambiar esta seccion) / aquí deberían vivir los datos del mapa real, minas, colores y vecinos
+/ ================================================================ / esta parte sí es la que puedes regenerar sin tocar la lógica del motor
